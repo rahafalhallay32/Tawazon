@@ -1,0 +1,13 @@
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+aiofiles==23.2.1
+pydantic==2.5.0
+TTS
+unidic-lite==1.0.8
+mecab-python3==1.0.6
+# deepspeed==0.12.4
+transformers==4.36.0
+tokenizers==0.15.0
+langid==1.1.6 
+#TTS==0.22.0

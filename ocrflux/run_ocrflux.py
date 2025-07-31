@@ -1,16 +1,16 @@
-# ocrflux/run_ocrflux.py
-
+import torch
 import os
 from PIL import Image
 from transformers import AutoTokenizer, AutoProcessor, AutoModelForImageTextToText
 from pdf2image import convert_from_path
+import json
 
 # -------------------
 # Paths and settings
 # -------------------
 MODEL_PATH = "ChatDOC/OCRFlux-3B"
 PDF_FOLDER = "../data/pdfs"
-TEXT_FOLDER = "../data/text_files"
+TEXT_FOLDER = "../data/json_files"
 EXTRACT_PROMPT = (
     "You are analyzing an Arabic presentation slide. Extract all visible text exactly as it appears, preserving the reading direction from right to left. "
     "Detect section headers and any other main titles, and format them as <h1> headers. "
@@ -24,8 +24,8 @@ EXTRACT_PROMPT = (
 print("📦 Loading OCRFlux model and processor...")
 model = AutoModelForImageTextToText.from_pretrained(
     MODEL_PATH,
-    torch_dtype="auto",
-    device_map="auto",
+    torch_dtype=torch.float32,
+    device_map={"": "cpu"},
 )
 model.eval()
 
@@ -67,35 +67,46 @@ def ocr_image(image_path, max_new_tokens=4096):
     )
     return output_text[0]
 
+
 # -------------------
 # Process all PDFs
 # -------------------
+import json
+
 def process_pdfs():
     os.makedirs(TEXT_FOLDER, exist_ok=True)
     pdf_files = [f for f in os.listdir(PDF_FOLDER) if f.lower().endswith(".pdf")]
 
     for pdf_file in pdf_files:
         pdf_path = os.path.join(PDF_FOLDER, pdf_file)
-        text_output_path = os.path.join(TEXT_FOLDER, pdf_file.replace(".pdf", ".txt"))
+        json_output_path = os.path.join(TEXT_FOLDER, pdf_file.replace(".pdf", ".json"))
+
+        # Skip if JSON already exists
+        if os.path.exists(json_output_path):
+            print(f" Skipping {pdf_file}, already processed.")
+            continue
 
         print(f"📄 Converting {pdf_file} to images...")
         images = convert_from_path(pdf_path)
 
-        full_text = ""
+        pages = []
         for i, image in enumerate(images):
             image_path = f"temp_page_{i}.png"
             image.save(image_path)
 
             print(f"🔍 OCR page {i+1}/{len(images)}...")
             text = ocr_image(image_path, max_new_tokens=4096)
-            full_text += f"\n\n===== Page {i+1} =====\n\n{text}"
+            pages.append({
+                "page": i + 1,
+                "content": text.strip()
+            })
 
             os.remove(image_path)
 
-        with open(text_output_path, "w", encoding="utf-8") as f:
-            f.write(full_text)
+        with open(json_output_path, "w", encoding="utf-8") as f:
+            json.dump(pages, f, ensure_ascii=False, indent=2)
 
-        print(f"✅ Saved: {text_output_path}\n")
+        print(f"✅ Saved JSON: {json_output_path}\n")
 
 if __name__ == "__main__":
     process_pdfs()

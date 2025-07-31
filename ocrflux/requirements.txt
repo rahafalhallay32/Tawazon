@@ -1,6 +1,7 @@
 torch>=2.1.0
 transformers==4.53.1
-flash-attn==2.7.4.post1
+#flash-attn==2.7.4.post1
 rich==14.0.0
 Pillow
 pdf2image
+accelerate
